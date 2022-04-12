@@ -21,6 +21,7 @@
 package execution
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -167,6 +168,9 @@ func (mi *ModuleInstance) newInstanceInfo() (*goja.Object, error) {
 // newTestInfo returns a goja.Object with property accessors to retrieve
 // information and control execution of the overall test run.
 func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) {
+	// the cache of goja.Object in the optimal parsed form
+	// for the consolidated and derived lib.Options
+	var optionsObject *goja.Object
 	rt := mi.vu.Runtime()
 	ti := map[string]func() interface{}{
 		// stop the test run
@@ -178,6 +182,16 @@ func (mi *ModuleInstance) newTestInfo() (*goja.Object, error) {
 				}
 				rt.Interrupt(&common.InterruptError{Reason: reason})
 			}
+		},
+		"options": func() interface{} {
+			if optionsObject == nil {
+				opts, err := optionsAsObject(rt, mi.vu.State().Options)
+				if err != nil {
+					common.Throw(rt, err)
+				}
+				optionsObject = opts
+			}
+			return optionsObject
 		},
 	}
 
@@ -225,6 +239,47 @@ func newInfoObj(rt *goja.Runtime, props map[string]func() interface{}) (*goja.Ob
 	}
 
 	return o, nil
+}
+
+// optionsAsObject maps the lib.Options struct that contains the consolidated
+// and deriverd options configuration in a goja.Object.
+func optionsAsObject(rt *goja.Runtime, options lib.Options) (*goja.Object, error) {
+	// TODO: refactor removing the json part
+	// and replace it with a static data mapping,
+	// potentially using a generator.
+	b, err := json.Marshal(options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode the lib.Options as json: %w", err)
+	}
+
+	var m map[string]interface{}
+	err = json.Unmarshal(b, &m)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode as a map the encoded lib.Options: %w", err)
+	}
+
+	obj := rt.ToValue(m).ToObject(rt)
+	err = obj.Set("consoleOutput", options.ConsoleOutput)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: implement the MarshalText function
+	// obj.Set("localIPs", options.LocalIPs)
+
+	if err := obj.Delete("vus"); err != nil {
+		return nil, err
+	}
+	if err := obj.Delete("duration"); err != nil {
+		return nil, err
+	}
+	if err := obj.Delete("iterations"); err != nil {
+		return nil, err
+	}
+	if err := obj.Delete("stages"); err != nil {
+		return nil, err
+	}
+	return obj, nil
 }
 
 type tagsDynamicObject struct {
