@@ -1,23 +1,3 @@
-/*
- *
- * k6 - a next-generation load testing tool
- * Copyright (C) 2021 Load Impact
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- */
-
 package execution
 
 import (
@@ -230,52 +210,6 @@ func TestAbortTest(t *testing.T) { //nolint:tparallel
 	})
 }
 
-/*
-func TestOptionsTestEmpty(t *testing.T) {
-	t.Parallel()
-
-	// Note: most of these fields will have a default value at runtime
-	// but we are applying defensive programming here due to fragile config
-
-	expected := `{"paused":false,"scenarios":{},"executionSegment":"0:1","executionSegmentSequence":"","noSetup":false,"setupTimeout":"0s","noTeardown":false,"teardownTimeout":"0s","rps":0,"dns":{"ttl":"5m","select":"random","policy":"preferIPv4"},"maxRedirects":0,"userAgent":"","batch":0,"batchPerHost":0,"httpDebug":"","insecureSkipTLSVerify":false,"tlsCipherSuites":null,"tlsVersion":null,"tlsAuth":[],"throw":false,"thresholds":{},"blacklistIPs":[],"blockHostnames":[],"hosts":{},"noConnectionReuse":false,"noVUConnectionReuse":false,"minIterationDuration":"0s","ext":{},"summaryTrendStats":[],"summaryTimeUnit":null,"systemTags":["iter"],"tags":null,"metricSamplesBufferSize":0,"noCookiesReset":false,"discardResponseBodies":false,"consoleOutput":""}`
-
-	var (
-		rt        = goja.New()
-		systagset = metrics.TagIter
-		ctx       = context.Background()
-	)
-
-	es, err := lib.NewExecutionSegmentFromString("0:1")
-	require.NoError(t, err)
-
-	state := &lib.State{
-		Options: lib.Options{
-			// Fields not well supported as empty
-			ExecutionSegment:         es,
-			ExecutionSegmentSequence: &lib.ExecutionSegmentSequence{},
-			DNS:                      types.DefaultDNSConfig(),
-			SystemTags:               &systagset,
-		},
-	}
-
-	m, ok := New().NewModuleInstance(
-		&modulestest.VU{
-			RuntimeField: rt,
-			InitEnvField: &common.InitEnvironment{},
-			CtxField:     ctx,
-			StateField:   state,
-		},
-	).(*ModuleInstance)
-	require.True(t, ok)
-	require.NoError(t, rt.Set("exec", m.Exports().Default))
-
-	opts, err := rt.RunString(`JSON.stringify(exec.test.options)`)
-	require.NoError(t, err)
-	require.NotNil(t, opts)
-	assert.JSONEq(t, expected, opts.String())
-}
-*/
-
 func TestOptionsTestFull(t *testing.T) {
 	t.Parallel()
 
@@ -441,4 +375,30 @@ func TestOptionsTestFull(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, opts)
 	assert.JSONEq(t, expected, opts.String())
+}
+
+func TestOptionsTestSetPropertyDenied(t *testing.T) {
+	t.Parallel()
+
+	rt := goja.New()
+	m, ok := New().NewModuleInstance(
+		&modulestest.VU{
+			RuntimeField: rt,
+			InitEnvField: &common.InitEnvironment{},
+			CtxField:     context.Background(),
+			StateField: &lib.State{
+				Options: lib.Options{
+					Paused: null.BoolFrom(true),
+				},
+			},
+		},
+	).(*ModuleInstance)
+	require.True(t, ok)
+	require.NoError(t, rt.Set("exec", m.Exports().Default))
+
+	_, err := rt.RunString(`exec.test.options.paused = false`)
+	require.NoError(t, err)
+	paused, err := rt.RunString(`exec.test.options.paused`)
+	require.NoError(t, err)
+	assert.Equal(t, true, rt.ToValue(paused).ToBoolean())
 }

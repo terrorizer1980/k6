@@ -243,42 +243,43 @@ func newInfoObj(rt *goja.Runtime, props map[string]func() interface{}) (*goja.Ob
 
 // optionsAsObject maps the lib.Options struct that contains the consolidated
 // and deriverd options configuration in a goja.Object.
+//
+// The Go primitive types when they are not set then the Go default type is returned.
+// Objects and Array when they are not set then null is returned.
 func optionsAsObject(rt *goja.Runtime, options lib.Options) (*goja.Object, error) {
-	// TODO: refactor removing the json part
-	// and replace it with a static data mapping,
-	// potentially using a generator.
 	b, err := json.Marshal(options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode the lib.Options as json: %w", err)
 	}
 
-	var m map[string]interface{}
-	err = json.Unmarshal(b, &m)
+	var props map[string]interface{}
+	err = json.Unmarshal(b, &props)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode as a map the encoded lib.Options: %w", err)
 	}
 
-	obj := rt.ToValue(m).ToObject(rt)
-	err = obj.Set("consoleOutput", options.ConsoleOutput)
-	if err != nil {
-		return nil, err
+	delete(props, "vus")
+	delete(props, "iterations")
+	delete(props, "duration")
+	delete(props, "stages")
+
+	obj := rt.NewObject()
+	mustSetReadOnlyProperty := func(k string, v interface{}) {
+		err := obj.DefineDataProperty(k, rt.ToValue(v), goja.FLAG_FALSE, goja.FLAG_FALSE, goja.FLAG_TRUE)
+		if err != nil {
+			common.Throw(rt, err)
+		}
 	}
+
+	for kprop, vprop := range props {
+		mustSetReadOnlyProperty(kprop, vprop)
+	}
+
+	mustSetReadOnlyProperty("consoleOutput", options.ConsoleOutput)
 
 	// TODO: implement the MarshalText function
 	// obj.Set("localIPs", options.LocalIPs)
 
-	if err := obj.Delete("vus"); err != nil {
-		return nil, err
-	}
-	if err := obj.Delete("duration"); err != nil {
-		return nil, err
-	}
-	if err := obj.Delete("iterations"); err != nil {
-		return nil, err
-	}
-	if err := obj.Delete("stages"); err != nil {
-		return nil, err
-	}
 	return obj, nil
 }
 
