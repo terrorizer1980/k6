@@ -288,3 +288,27 @@ func TestSSLKEYLOGFILE(t *testing.T) {
 // TODO: also add a test that starts multiple k6 "instances", for example:
 //  - one with `k6 run --paused` and another with `k6 resume`
 //  - one with `k6 run` and another with `k6 stats` or `k6 status`
+
+func TestExecutionTestOptionsDefaultValues(t *testing.T) {
+	t.Parallel()
+	script := `
+		import exec from 'k6/execution';
+
+		export default function (data) {
+			console.log(exec.test.options)
+		}
+	`
+
+	ts := newGlobalTestState(t)
+	require.NoError(t, afero.WriteFile(ts.fs, filepath.Join(ts.cwd, "test.js"), []byte(script), 0o644))
+	ts.args = []string{"k6", "run", "--iterations", "1", "test.js"}
+
+	newRootCommand(ts.globalState).execute()
+
+	loglines := ts.loggerHook.Drain()
+	require.Len(t, loglines, 1)
+
+	// TODO: align with the docs
+	expected := `{"paused":false,"scenarios":null,"executionSegment":"0:1","executionSegmentSequence":"","noSetup":false,"setupTimeout":"0s","noTeardown":false,"teardownTimeout":"0s","rps":0,"dns":{"ttl":"5m","select":"random","policy":"preferIPv4"},"maxRedirects":0,"userAgent":"","batch":0,"batchPerHost":0,"httpDebug":"","insecureSkipTLSVerify":false,"tlsCipherSuites":null,"tlsVersion":null,"tlsAuth":null,"throw":false,"thresholds":null,"blacklistIPs":null,"blockHostnames":null,"hosts":null,"noConnectionReuse":false,"noVUConnectionReuse":false,"minIterationDuration":"0s","ext":null,"summaryTrendStats":null,"summaryTimeUnit":null,"systemTags":["iter"],"tags":null,"metricSamplesBufferSize":0,"noCookiesReset":false,"discardResponseBodies":false,"consoleOutput":""}`
+	assert.JSONEq(t, expected, loglines[0].Message)
+}
