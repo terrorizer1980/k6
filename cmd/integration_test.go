@@ -294,7 +294,7 @@ func TestExecutionTestOptionsDefaultValues(t *testing.T) {
 	script := `
 		import exec from 'k6/execution';
 
-		export default function (data) {
+		export default function () {
 			console.log(exec.test.options)
 		}
 	`
@@ -308,7 +308,6 @@ func TestExecutionTestOptionsDefaultValues(t *testing.T) {
 	loglines := ts.loggerHook.Drain()
 	require.Len(t, loglines, 1)
 
-	// TODO: align with the docs
-	expected := `{"paused":false,"scenarios":null,"executionSegment":"0:1","executionSegmentSequence":"","noSetup":false,"setupTimeout":"0s","noTeardown":false,"teardownTimeout":"0s","rps":0,"dns":{"ttl":"5m","select":"random","policy":"preferIPv4"},"maxRedirects":0,"userAgent":"","batch":0,"batchPerHost":0,"httpDebug":"","insecureSkipTLSVerify":false,"tlsCipherSuites":null,"tlsVersion":null,"tlsAuth":null,"throw":false,"thresholds":null,"blacklistIPs":null,"blockHostnames":null,"hosts":null,"noConnectionReuse":false,"noVUConnectionReuse":false,"minIterationDuration":"0s","ext":null,"summaryTrendStats":null,"summaryTimeUnit":null,"systemTags":["iter"],"tags":null,"metricSamplesBufferSize":0,"noCookiesReset":false,"discardResponseBodies":false,"consoleOutput":""}`
+	expected := `{"paused":null,"executionSegment":null,"executionSegmentSequence":null,"noSetup":null,"setupTimeout":null,"noTeardown":null,"teardownTimeout":null,"rps":null,"dns":{"ttl":null,"select":null,"policy":null},"maxRedirects":null,"userAgent":null,"batch":null,"batchPerHost":null,"httpDebug":null,"insecureSkipTLSVerify":null,"tlsCipherSuites":null,"tlsVersion":null,"tlsAuth":null,"throw":null,"thresholds":null,"blacklistIPs":null,"blockHostnames":null,"hosts":null,"noConnectionReuse":null,"noVUConnectionReuse":null,"minIterationDuration":null,"ext":null,"summaryTrendStats":["avg", "min", "med", "max", "p(90)", "p(95)"],"summaryTimeUnit":null,"systemTags":["check","error","error_code","expected_response","group","method","name","proto","scenario","service","status","subproto","tls_version","url"],"tags":null,"metricSamplesBufferSize":null,"noCookiesReset":null,"discardResponseBodies":null,"consoleOutput":null,"scenarios":{"default":{"vus":null,"iterations":1,"executor":"shared-iterations","maxDuration":null,"startTime":null,"env":null,"tags":null,"gracefulStop":null,"exec":null}}}`
 	assert.JSONEq(t, expected, loglines[0].Message)
 }
